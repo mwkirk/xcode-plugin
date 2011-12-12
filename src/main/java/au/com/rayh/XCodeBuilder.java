@@ -66,10 +66,13 @@ public class XCodeBuilder extends Builder {
     public final Boolean unlockKeychain;
     public final String keychainPath;
     public final String keychainPwd;
+    public final String xcodeWorkspaceFile;
+    public final String scheme;
+    public final String xcconfigFile;
 
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public XCodeBuilder(Boolean buildIpa, Boolean cleanBeforeBuild, String configuration, String target, String sdk, String xcodeProjectPath, String xcodeProjectFile, String embeddedProfileFile, String cfBundleVersionValue, String cfBundleShortVersionStringValue, Boolean unlockKeychain, String keychainPath, String keychainPwd) {
+	public XCodeBuilder(Boolean buildIpa, Boolean cleanBeforeBuild, String configuration, String target, String sdk, String xcodeProjectPath, String xcodeProjectFile, String embeddedProfileFile, String cfBundleVersionValue, String cfBundleShortVersionStringValue, Boolean unlockKeychain, String keychainPath, String keychainPwd, String xcodeWorkspaceFile, String scheme, String xcconfigFile) {
         this.buildIpa = buildIpa;
         this.sdk = sdk;
         this.target = target;
@@ -83,6 +86,9 @@ public class XCodeBuilder extends Builder {
         this.unlockKeychain = unlockKeychain;
         this.keychainPath = keychainPath;
         this.keychainPwd = keychainPwd;
+	    this.xcodeWorkspaceFile = xcodeWorkspaceFile;
+	    this.scheme = scheme;
+	    this.xcconfigFile = xcconfigFile;
     }
 
     @Override
@@ -106,6 +112,9 @@ public class XCodeBuilder extends Builder {
         }
         listener.getLogger().println(Messages.XCodeBuilder_workingDir(projectRoot));
         FilePath buildDirectory = projectRoot.child("build").child(configuration + "-iphoneos");
+        // We'll set OBJROOT and SYMROOT later when we invoke xcodebuild
+        FilePath objRoot = projectRoot.child("build");
+        FilePath symRoot = projectRoot.child("build");
 
         // XCode Version
         int returnCode = launcher.launch().envs(envs).cmds(getDescriptor().getXcodebuildPath(), "-version").stdout(listener).pwd(projectRoot).join();
@@ -211,13 +220,21 @@ public class XCodeBuilder extends Builder {
         StringBuilder xcodeReport = new StringBuilder(Messages.XCodeBuilder_invokeXcodebuild());
         XCodeBuildOutputParser reportGenerator = new XCodeBuildOutputParser(projectRoot, listener);
         List<String> commandLine = Lists.newArrayList(getDescriptor().getXcodebuildPath());
-        if (StringUtils.isEmpty(target)) {
-            commandLine.add("-alltargets");
-            xcodeReport.append("target: ALL");
-        } else {
-            commandLine.add("-target");
-            commandLine.add(target);
-            xcodeReport.append("target: ").append(target);
+
+        // Set OBJROOT and SYMROOT 
+        // TODO: do we need some to escape for paths with whitespace?  Double quotes caused problems for xcodebuild.
+        commandLine.add("OBJROOT=" + objRoot);
+        commandLine.add("SYMROOT=" + symRoot);
+
+        if (StringUtils.isEmpty(xcodeWorkspaceFile)) {
+            if (StringUtils.isEmpty(target)) {
+                commandLine.add("-alltargets");
+                xcodeReport.append("target: ALL"); 
+            } else {
+                commandLine.add("-target");
+                commandLine.add(target);
+                xcodeReport.append("target: ").append(target);
+            } 
         }
 
         if (!StringUtils.isEmpty(sdk)) {
@@ -234,6 +251,24 @@ public class XCodeBuilder extends Builder {
             xcodeReport.append(", project: ").append(xcodeProjectFile);
         } else {
             xcodeReport.append(", project: DEFAULT");
+        }
+
+        if (!StringUtils.isEmpty(xcodeWorkspaceFile)) {
+            commandLine.add("-workspace");
+            commandLine.add(xcodeWorkspaceFile);
+            xcodeReport.append(", Xcode workspace: ").append(xcodeWorkspaceFile);
+        }
+
+        if (!StringUtils.isEmpty(scheme)) {
+            commandLine.add("-scheme");
+            commandLine.add(scheme);
+            xcodeReport.append(", scheme: ").append(scheme);
+        }
+
+        if (!StringUtils.isEmpty(xcconfigFile)) {
+            commandLine.add("-xcconfig");
+            commandLine.add(xcconfigFile);
+            xcodeReport.append(", xcconfig: ").append(xcconfigFile);
         }
 
         commandLine.add("-configuration");

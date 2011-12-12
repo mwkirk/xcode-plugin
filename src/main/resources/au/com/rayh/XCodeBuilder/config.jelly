@@ -57,6 +57,21 @@
         <f:textbox />
     </f:entry>
 
+    <f:entry title="${%Xcode Workspace File}" field="xcodeWorkspaceFile"
+      description="Relative path within the workspace of the Xcode Workspace">
+        <f:textbox />
+    </f:entry>
+
+    <f:entry title="${%Scheme}" field="scheme"
+      description="Xcode scheme">
+        <f:textbox/>
+    </f:entry>
+
+    <f:entry title="${%XcconfigFile}" field="xcconfigFile"
+      description="Xcode config file">
+        <f:textbox/>
+    </f:entry>
+
     <f:entry title="${%Marketing version}" field="cfBundleShortVersionStringValue"
    	  description="The value to use for CFBundleShortVersionString. Leave blank to use project's marketing number.">
    	  <f:textbox />
